@@ -7,6 +7,8 @@ Ruby library for easy working with the [Collecta XMPP API](http://developer.coll
  * xmpp4r - low level XMPP manipulations
  * crack - XML parsing
  * switchboard - only for collecta_jack.rb
+ * xmpp4-simple - only for collecta_bot.rb
+ * eventmachine - only for collecta_bot.rb
 
 ## Implemented features
 
@@ -23,6 +25,11 @@ Ruby library for easy working with the [Collecta XMPP API](http://developer.coll
  * _CollectaJack_ - [Switchboard Jack](http://mojodna.net/2009/07/19/switchboard-as-a-framework.html) for PubSub subscription etc.
 
 _test\_search.rb_ and _test\_jack.rb_ for library testing and  demonstration.
+
+### collecta_bot.rb
+
+ * _Collecta::Task_ - EventMachine::Deferrable - based - background processing for long-running tasks
+ * _Collecta::Bot_  - EventMachine -based XMPP bot, sending results from the Collecta serches to some JID
 
 ## Usage
 
@@ -54,7 +61,7 @@ Be sure to pass your [Collecta API key](http://developer.collecta.com/KeyRequest
 
     require 'collecta_jack'
     
-    settings = YAML.load(File.read("test_config.yml"))
+    settings = YAML.load(File.read("config.yml"))
     # query from the command line, no notifications, debug enabled
     switchboard = Switchboard::CollectaClient.new(settings["collecta.apikey"], ARGV.pop, nil, true)
     
@@ -64,6 +71,23 @@ Be sure to pass your [Collecta API key](http://developer.collecta.com/KeyRequest
     end
      
     switchboard.run!
+
+### XMPP Bot
+
+Make sure you have the correct settings for your bot JID and password ("bot.jid" and "bot.password")
+and for the account, that will receive all messages ("bot.console")
+
+    require 'collecta_bot'
+
+    class SearchBot < Collecta::Bot
+        def self.format_result(msg, debug = true)
+            # some fancy message formatting
+            ...
+        end
+    end
+
+    SearchBot.run("config.yml")
+    
 
 ## ToDo
 

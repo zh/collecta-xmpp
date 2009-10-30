@@ -1,0 +1,8 @@
+*.orig
+*.rej
+*~
+*.o
+*.log
+*.db
+backup
+config.yml

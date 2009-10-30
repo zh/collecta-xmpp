@@ -1,0 +1,6 @@
+--- 
+debug: true
+bot.jid: bot@example.com
+bot.password: secret
+bot.console: me@jabber.org
+collecta.apikey: __you_apikey_here__

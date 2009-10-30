@@ -55,7 +55,6 @@ module Collecta
 
     def subscribe(query = nil, notify = nil)
       # need at least one of query or notify
-      puts "q: #{query}, n: #{notify}"
       raise Jabber::ArgumentError, "Subscription needs: query or notify" unless (query or notify)
       options = { "x-collecta#apikey" => @apikey }
       options["x-collecta#query"] = query if query
