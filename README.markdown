@@ -74,6 +74,14 @@ Be sure to pass your [Collecta API key](http://developer.collecta.com/KeyRequest
 
 ### XMPP Bot
 
+Available Bot Commands
+
+ * __HELP__ - just a commands list. TODO: better help message with commands description
+ * __PING__ - check the connection. Will ask also for authentication
+ * __S, s__ - subscribe to some query. Will start sending the results to the console JID ("bot.console")
+ * __N, n__ - subscribe to notify. TODO: announce the notify results only when ask for them
+ * __UN, un, U, u__ - unsubscribe from ALL subscriptions
+
 Make sure you have the correct settings for your bot JID and password ("bot.jid" and "bot.password")
 and for the account, that will receive all messages ("bot.console")
 

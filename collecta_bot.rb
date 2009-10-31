@@ -106,13 +106,10 @@ module Collecta
             when "PING", "ping", "Ping":
               @@socket.ask_for_auth(msg.from)
               Bot.client.deliver(from, "PONG ;)")
+            # Subscribe to query or notify  
             when "S", "s", "N", "n"
-              next unless from == settings["bot.console"]
+              next unless (from == settings["bot.console"] and cmdline[1])
               EM.spawn do
-                unless cmdline[1]
-                  Bot.client.deliver(from, "Please provide some query")
-                  next
-                end
                 # TODO validate the query
                 type = (cmdline[0].downcase == "s") ? "query" : "notify"
                 settings[type] = msg.body.slice(2, msg.body.length)
@@ -124,7 +121,8 @@ module Collecta
                 task.errback  { Bot.client.deliver(from, "Subscription failed") }
                 task.do_subscribe(settings)
               end.notify
-            when "UN", "un"
+            # UnSubscribe
+            when "UN", "un", "U", "u"
               next unless from == settings["bot.console"]
               EM.spawn do
                 task = Task.new
