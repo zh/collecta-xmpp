@@ -29,7 +29,7 @@ _test\_search.rb_ and _test\_jack.rb_ for library testing and  demonstration.
 ### collecta_bot.rb
 
  * _Collecta::Task_ - EventMachine::Deferrable - based - background processing for long-running tasks
- * _Collecta::Bot_  - EventMachine -based XMPP bot, sending results from the Collecta serches to some JID
+ * _Collecta::Bot_  - EventMachine -based XMPP bot, sending results from the Collecta searches to some JID
 
 ## Usage
 
