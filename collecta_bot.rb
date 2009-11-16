@@ -98,13 +98,12 @@ module Collecta
             cmdline = msg.body.split
 
             case cmdline[0]
-            when "HELP", "H", "help", "?":
+            when "HELP", "H", "help", "H", "h", "?":
               # TODO better help
-              help = "HELP, PING"
+              help = "HELP (H), PING (P)"
               help += ", S, N, UN" if from == settings["bot.console"]
               Bot.client.deliver(from, help)
-            when "PING", "ping", "Ping":
-              @@socket.ask_for_auth(msg.from)
+            when "PING", "ping", "Ping", "P", "p":
               Bot.client.deliver(from, "PONG ;)")
             # Subscribe to query or notify  
             when "S", "s", "N", "n"

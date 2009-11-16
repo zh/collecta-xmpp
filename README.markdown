@@ -97,6 +97,22 @@ and for the account, that will receive all messages ("bot.console")
     SearchBot.run("config.yml")
     
 
+### Desktop notifications (Growl, libnotify) 
+
+_collecta_notifyio.rb_
+
+Desktop notifications via http://notify.io/ service are also available. You can use the original 
+[Growl client for Mac](http://www.notify.io/download/notifyio-client.py) or
+my [python-notify based client for Linux](http://github.com/zh/wip/blob/master/python/notifyio-notify.py).
+
+Be sure to adjust _notifyio.userhash_ and _notifyio.apikey_ in the config file. You can get their values from
+the [notify.io settings page](http://www.notify.io/dashboard/settings).
+
+You need to supply the search query via the command line parameter:
+
+    $ ruby ./collecta_notifyio.rb "iphone category:story"
+
+
 ## ToDo
 
  * ruby gem

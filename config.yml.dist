@@ -4,3 +4,5 @@ bot.jid: bot@example.com
 bot.password: secret
 bot.console: me@jabber.org
 collecta.apikey: __you_apikey_here__
+notifyio.userhash: __notify_io_userhash__
+notifyio.apikey: __notify_io_api_key__

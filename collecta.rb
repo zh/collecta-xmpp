@@ -53,11 +53,9 @@ module Collecta
       return self
     end
 
-    def subscribe(query = nil, notify = nil)
-      # need at least one of query or notify
-      raise Jabber::ArgumentError, "Subscription needs: query or notify" unless (query or notify)
-      options = { "x-collecta#apikey" => @apikey }
-      options["x-collecta#query"] = query if query
+    def subscribe(query, notify = nil)
+      raise Jabber::ArgumentError, "Subscription needs some query" unless query
+      options = { "x-collecta#apikey" => @apikey, "x-collecta#query" => query }
       options["x-collecta#notify"] = notify if notify
       @pubsub = Jabber::PubSub::ServiceHelper.new(self, @service)
       return @pubsub.subscribe_to_with_options(@node, options)
