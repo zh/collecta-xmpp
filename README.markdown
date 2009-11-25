@@ -10,6 +10,7 @@ Ruby library for easy working with the [Collecta XMPP API](http://developer.coll
  * _xmpp4-simple_ - only for collecta_bot.rb
  * _eventmachine_ - only for collecta_bot.rb
  * _sinatra_ - only for collecta_web.rb
+ * _json_ - only for collecta_web.rb
 
 ## Implemented features
 
@@ -127,8 +128,16 @@ The API is not designed to be full featured web service. His primary goal is to 
 deployed on Google AppEngine or Heroku. The main service need to take care for the users authentication and management,
 saving queries per user etc. But because most of the deployment environments (GAE, Heroku etc.) cannot work with
 XMPP PubSub, the current simple web API will be used for the real requests to the Collecta XMPP API.
-The only protection in the moment is a secret _apikey_ parameter, send with each request. On the server side it must be setup
-inside the _config.yml_ file like _web.apikey_ . For example:
+The only protection in the moment is the _sig_ parameter (signature), send with each request. The signature is generated
+as follows:
+
+    sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}") 
+    # example
+    web.apikey = "SomeSecret"
+    jid = "me@jabber.org"
+    sig = "3dbc8601b2fd476b3eee59814d1a6ba8328e5492"
+
+On the server side _web.apikey_ must be set inside the _config.yml_ . For example:
 
     # --- config.yml
     ....
@@ -136,12 +145,18 @@ inside the _config.yml_ file like _web.apikey_ . For example:
     bot.jid: bot@example.com
     ....
 
-The API contains just two methods (POST requests): _/1/sub/_  and _/1/unsub_ for subscription to some query and unsubscription 
-from all queries. Required parameters:
+The API contains just two POST requests methods ( _/1/sub/_  and _/1/unsub/_ for subscription to some query and unsubscription 
+from all queries) and one GET request method ( _/1/list_ ) for some JID subscriptions listing. 
 
- * _apikey_ - _web.apikey_ from the _config.yml_ configuration file
+Required parameters:
+
  * _jid_ - JID on the account, that will recieve the results from the search
- * _q_ - Collecta query string
+ * _sig_ - signature - created as _Digest::SHA1.hexdigest()_ of _web.apikey_ from the _config.yml_ configuration file and _jid_
+ * _q_ - Collecta query string (only for subscriptions - _/1/sub/_ calls)
+
+Optional parameters:
+
+ * _callback_ - only for GET listing requests ( _/1/list_ ). JSONP-ready
 
 Starting the web API (it's Sinatra (means Rack) application) on _port 8080_:
 
@@ -151,10 +166,16 @@ Starting the web API (it's Sinatra (means Rack) application) on _port 8080_:
 Example command-line usage:
 
     // me@jabber.org  will recieve results from the 'iphone'  and 'mac category:story' searches
-    $ curl -X POST -d'apikey=secret' -d'jid=me@jabber.org' -d'q=iphone' http://example.com/1/sub/
-    $ curl -X POST -d'apikey=secret' -d'jid=me@jabber.org' -d'q="mac category:story"' http://example.com/1/sub/
+    $ curl -X POST -d'sig=97...' -d'jid=me@jabber.org' -d'q=iphone' http://example.com/1/sub/
+    $ curl -X POST -d'sig=97...' -d'jid=me@jabber.org' -d'q="mac category:story"' http://example.com/1/sub/
+    // to which quieries is subscribed me@jabber.org
+    $ curl -v "http://example.com/1/list?jid=me@jabber.org&sig=97..."
+    ...
+    < Content-Type: application/json; charset=utf-8
+    ...
+    ["iphone","\"mac category:story\""]
     // unsubscribe from all queries
-    $  curl -X POST -d'apikey=secret' -d'jid=me@jabber.org' http://example.com/1/unsub/
+    $  curl -X POST -d'sig=97...' -d'jid=me@jabber.org' http://example.com/1/unsub/
 
 The subscribed JID (_me@jabber.jp_ in the example above) need first to include the _"bot.jid"_ JID from the _config.yml_ file 
 (_bot@example.com_ in _config.yml.dist_) in his roster and authorize it for messages exchange.
