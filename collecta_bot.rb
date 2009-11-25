@@ -104,6 +104,7 @@ module Collecta
               help += ", S, N, UN" if from == settings["bot.console"]
               Bot.client.deliver(from, help)
             when "PING", "ping", "Ping", "P", "p":
+              Bot.client.ask_for_auth(msg.from)
               Bot.client.deliver(from, "PONG ;)")
             # Subscribe to query or notify  
             when "S", "s", "N", "n"

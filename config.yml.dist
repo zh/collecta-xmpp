@@ -6,3 +6,4 @@ bot.console: me@jabber.org
 collecta.apikey: __you_apikey_here__
 notifyio.userhash: __notify_io_userhash__
 notifyio.apikey: __notify_io_api_key__
+web.apikey: __some_secret_here__
