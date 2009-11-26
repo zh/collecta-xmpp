@@ -42,6 +42,18 @@ module Collecta
     end
 
     helpers do
+      def protected!
+        response['WWW-Authenticate'] = %(Basic realm="Protected Area") and \
+        throw(:halt, [401, "Not authorized\n"]) and \
+        return unless authorized?
+      end
+
+      def authorized?
+        @auth ||=  Rack::Auth::Basic::Request.new(request.env)
+        @auth.provided? && @auth.basic? && @auth.credentials && 
+                           @auth.credentials == ['admin', CFG['web.password']]
+      end
+
       def do_dump(jid)
         msg = "<h2>JID: #{jid}</h2><pre>\n"
         msg += "Queries: #{QUERIES[jid].inspect}\n" if QUERIES[jid]
@@ -180,7 +192,8 @@ module Collecta
     end
 
     # Debug subscribe
-    get '/1/sub/?' do
+    get '/1/admin/?' do
+      protected!
       erb :subscribe
     end
 
