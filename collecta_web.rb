@@ -29,23 +29,8 @@ module Collecta
       CONN = {}
       CFG = YAML.load(File.read("config.yml"))
       XMPP = Jabber::Simple.new(CFG['bot.jid'], CFG['bot.password'])
-    end
 
-    get '/' do
-      return "API v#{API_VERSION}"
-    end
-
-    get '/1/?' do
-      return "API v#{API_VERSION}"
-    end  
-
-    post '/1/sub/?' do
-      begin
-        jid = params[:jid]
-        query = params[:q]
-        raise "Missing or wrong parameter" unless jid and jid.valid_jid? and query
-        sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
-        raise "Non authorized" unless params[:sig] == sig
+      def do_subscribe(jid, query)
         if CONN[jid]
           @service = CONN[jid]
         else
@@ -67,6 +52,30 @@ module Collecta
           QUERIES[jid] = Array(query)
         end
         @service.subscribe(query)
+      end
+
+      def do_unsubscribe(jid)
+        CONN[jid].unsubscribe
+        QUERIES.delete(jid) if QUERIES[jid]
+      end  
+    end
+
+    get '/' do
+      return "API v#{API_VERSION}"
+    end
+
+    get '/1/?' do
+      return "API v#{API_VERSION}"
+    end  
+
+    post '/1/sub/?' do
+      begin
+        jid = params[:jid]
+        query = params[:q]
+        raise "Missing or wrong parameter" unless jid and jid.valid_jid? and query
+        sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
+        raise "Non authorized" unless params[:sig] == sig
+        do_subscribe(jid, query)
       rescue Exception => e
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
@@ -79,8 +88,7 @@ module Collecta
         raise "Invalid JID '#{jid}'" unless jid and jid.valid_jid? and CONN[jid]
         sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
         raise "Non authorized" unless params[:sig] == sig
-        CONN[jid].unsubscribe
-        QUERIES.delete(jid) if QUERIES[jid]
+        do_unsubscribe(jid)
       rescue Exception => e
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
@@ -104,6 +112,26 @@ module Collecta
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
     end
+
+    # Debug subscribe
+    get '/1/sub/?' do
+      erb :subscribe
+    end
+
+    post '/1/?' do
+      throw :halt, [400, "Bad request"] unless params['mode'] and params['jid']
+      raise "Non authorized" unless params[:apikey] == CFG['web.apikey']
+      if params['mode'] == 'subscribe'
+        throw :halt, [400, "Bad request"] unless params['query']
+        do_subscribe(params['jid'], params['query'])
+      elsif params['mode'] == 'unsubscribe'
+        do_unsubscribe(params['jid'])
+      else
+        throw :halt, [400, "Bad request, unknown 'hub.mode' parameter"]
+      end
+      throw :halt, [200, "OK"]
+    end    
+
   end
 end
 

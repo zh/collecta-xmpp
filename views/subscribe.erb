@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+  <title>Web API - Subscription debug</title>
+  <link rel="stylesheet" href="/css/style.css" type="text/css" media="screen" />
+</head>
+<body>
+
+<h1>Subscribe/Unsubscribe</h1>
+
+<form action="/1/" method="post" accept-charset="utf-8">
+  <p>
+    <label for="jid">JID: <em>(the subscriber JID)</em></label>
+    <input type="text" name="jid" value="" id="jid">
+  </p>
+  <p>
+    <label for="query">Query: <em>(what to search for?)</em></label>
+    <input type="text" name="query" value="" id="query">
+  </p>
+  <p>
+    <label for="apikey">API key: <em>(web.apikey in config.yml)</em></label>
+    <input type="text" name="apikey" value="" id="apikey">
+  </p>
+
+  <p>
+    <label for="mode">Mode:</label>
+    <select name="mode" id="mode">
+      <option value="subscribe" selected="selected">Subscribe</option>
+      <option value="unsubscribe">Unsubscribe</option>
+    </select>
+  </p>
+
+  <p><input type="submit" value="Do it"></p>
+</form>  
+
+</body>
+</html>
