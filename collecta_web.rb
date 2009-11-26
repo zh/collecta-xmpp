@@ -49,7 +49,7 @@ module Collecta
       unless @queries.include?(query)
         @queries << query
         @service.subscribe(query)
-      end  
+      end
     end 
 
     def unsubscribe
@@ -59,6 +59,7 @@ module Collecta
     end  
 
     def hook(url)
+      return unless url and not url.empty?
       @callbacks << url unless @callbacks.include?(url)
     end  
 
@@ -137,11 +138,7 @@ module Collecta
       
         DB[jid].noxmpp = noxmpp
         DB[jid].subscribe(query)
-
-        # do not keep duplicated callback urls
-        if callback and not callback.empty?
-          DB[jid].hook(callback)
-        end  
+        DB[jid].hook(callback)
       end
     end
 
