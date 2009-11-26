@@ -27,6 +27,52 @@ class String
 end
 
 module Collecta
+
+  class Search
+
+    attr_accessor :queries, :callbacks, :service, :jid, :noxmpp
+
+    def initialize(jid, apikey, noxmpp)
+      @jid = jid
+      @noxmpp = noxmpp
+      @queries = [] 
+      @callbacks = []
+      @service = Collecta::Client.new(apikey)
+      @service.anonymous_connect
+    end
+
+    def subscribed?(query); @queries.include?(query) end 
+    def hooked?(url); @callbacks.include?(url) end
+    def connected?; @service == nil end
+
+    def subscribe(query)
+      unless @queries.include?(query)
+        @queries << query
+        @service.subscribe(query)
+      end  
+    end 
+
+    def unsubscribe
+      @service.unsubscribe 
+      @queries = [] 
+      @callbacks = []
+    end  
+
+    def hook(url)
+      @callbacks << url unless @callbacks.include?(url)
+    end  
+
+    def to_s
+        msg = "<h2>JID: #{@jid}</h2><pre>\n"
+        msg += "HTTP Only?: #{@noxmpp ? 'yes' : 'no'}\n"
+        msg += "Queries: #{@queries.inspect}\n"
+        msg += "Callbacks: #{@callbacks.inspect}\n"
+        msg += "<pre>\n"
+        msg += '<br/><br/><a href="/1/admin" onClick="history.go(-1)">Back</a>'
+        msg
+    end
+  end
+
   class App < Sinatra::Default
     set :sessions, false
     set :run, false
@@ -34,9 +80,7 @@ module Collecta
 
     configure do
       API_VERSION = "1.2"
-      QUERIES = {}
-      CONN = {}
-      CALLBACKS = {}
+      DB = {}
       CFG = YAML.load(File.read("config.yml"))
       XMPP = Jabber::Simple.new(CFG['bot.jid'], CFG['bot.password'])
     end
@@ -54,18 +98,9 @@ module Collecta
                            @auth.credentials == ['admin', CFG['web.password']]
       end
 
-      def do_dump(jid)
-        msg = "<h2>JID: #{jid}</h2><pre>\n"
-        msg += "Queries: #{QUERIES[jid].inspect}\n" if QUERIES[jid]
-        msg += "Callbacks: #{CALLBACKS[jid].inspect}\n" if CALLBACKS[jid]
-        msg += "<pre>\n"
-        msg += '<br/><br/><a href="/1/admin#" onClick="history.go(-1)">Back</a>'
-        msg
-      end
-
       # post the search results to a callback url(s) for some JID
       def do_post(jid, payload)
-        CALLBACKS[jid].each do |cb|
+        DB[jid].callbacks.each do |cb|
           begin
             MyTimer.timeout(CFG['web.giveup'].to_i) do
               params = { :meta => payload.meta,
@@ -87,54 +122,27 @@ module Collecta
         end   
       end  
 
-      def do_subscribe(jid, query, callback = "")
-        @service = nil
-        if CONN[jid]
-          @service = CONN[jid]
-        else
-          @service = Collecta::Client.new(CFG["collecta.apikey"])
-          @service.anonymous_connect
-          @service.add_message_callback do |msg|
+      def do_subscribe(jid, query, callback = "", noxmpp = false)
+        unless DB[jid]
+          DB[jid] = Collecta::Search.new(jid, CFG['collecta.apikey'], noxmpp)
+          DB[jid].service.add_message_callback do |msg|
             payload = Collecta::Payload.new(msg)
             text = "[#{payload.meta}] #{payload.category}: #{payload.title}"
             p "#{jid} -> #{text}"
-            XMPP.deliver(jid, "#{text}\n#{payload.body}")
+            XMPP.deliver(jid, "#{text}\n#{payload.body}") unless DB[jid].noxmpp == true
             # post the results also to the verified webhook
-            do_post(jid, payload) if CALLBACKS[jid]
+            do_post(jid, payload) unless DB[jid].callbacks.empty?
           end  
-          CONN[jid] = @service
         end
-
-
-        exists = false
-        # do not keep duplicated subscriptions
-        if QUERIES[jid]
-          if QUERIES[jid].include?(query)
-            exists = true
-          else  
-            QUERIES[jid] << query
-          end  
-        else
-          QUERIES[jid] = Array(query)
-        end
+      
+        DB[jid].noxmpp = noxmpp
+        DB[jid].subscribe(query)
 
         # do not keep duplicated callback urls
         if callback and not callback.empty?
-          if CALLBACKS[jid]
-            CALLBACKS[jid] << callback unless CALLBACKS[jid].include?(callback)
-          else
-            CALLBACKS[jid] = Array(callback)
-          end
+          DB[jid].hook(callback)
         end  
-
-        @service.subscribe(query) unless exists
       end
-
-      def do_unsubscribe(jid)
-        CONN[jid].unsubscribe
-        QUERIES.delete(jid) if QUERIES[jid]
-        CALLBACKS.delete(jid) if CALLBACKS[jid]
-      end  
     end
 
     get '/' do
@@ -150,10 +158,11 @@ module Collecta
         jid = params[:jid]
         query = params[:q]
         callback = params[:callback]
+        noxmpp = params[:noxmpp] ? true : false
         raise "Missing or wrong parameter" unless jid and jid.valid_jid? and query
         sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
         raise "Non authorized" unless params[:sig] == sig
-        do_subscribe(jid, query, callback)
+        do_subscribe(jid, query, callback, noxmpp)
       rescue Exception => e
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
@@ -163,10 +172,10 @@ module Collecta
     post '/1/unsub/?' do
       begin
         jid = params[:jid]
-        raise "Invalid JID '#{jid}'" unless jid and jid.valid_jid? and CONN[jid]
+        raise "Invalid JID '#{jid}'" unless jid and jid.valid_jid? and DB[jid]
         sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
         raise "Non authorized" unless params[:sig] == sig
-        do_unsubscribe(jid)
+        DB[jid].unsubscribe
       rescue Exception => e
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
@@ -176,11 +185,11 @@ module Collecta
     get '/1/list/?' do
       begin
         jid = params[:jid]
-        raise "Invalid JID '#{jid}'" unless jid and jid.valid_jid? and QUERIES[jid]
+        raise "Invalid JID '#{jid}'" unless jid and jid.valid_jid? and DB[jid]
         sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
         raise "Non authorized" unless params[:sig] == sig
         content_type 'application/json; charset=utf-8'
-        js = QUERIES[jid].to_json
+        js = DB[jid].queries.to_json
         # Allow 'abc' and 'abc.def' but not '.abc' or 'abc.'
         if params[:callback] and params[:callback].match(/^\w+(\.\w+)*$/)
           js = "#{params[:callback]}(#{js})"
@@ -194,23 +203,28 @@ module Collecta
     # Debug subscribe
     get '/1/admin/?' do
       protected!
-      erb :subscribe
+      erb :admin
     end
 
     post '/1/?' do
-      throw :halt, [400, "Bad request"] unless params['mode'] and params['jid']
+      jid = params[:jid]
+      mode = params[:mode]
+      throw :halt, [400, "Bad request"] unless mode and jid
       raise "Non authorized" unless params[:apikey] == CFG['web.apikey']
-      if params['mode'] == 'dump'
-        throw :halt, [200, do_dump(params['jid'])]
-      elsif params['mode'] == 'subscribe'
-        throw :halt, [400, "Bad request"] unless params['query']
-        do_subscribe(params['jid'], params['query'], params['callback'])
-      elsif params['mode'] == 'unsubscribe'
-        do_unsubscribe(params['jid'])
+      if mode == 'dump'
+        throw :halt, [200, DB[jid].to_s]
+      elsif mode == 'subscribe'
+        query = params[:query]
+        throw :halt, [400, "Bad request"] unless query
+        callback = params[:callback]
+        noxmpp = (params[:noxmpp] == 'yes' and callback and not callback.empty?) ? true : false
+        do_subscribe(jid, query, params[:callback], noxmpp)
+      elsif mode == 'unsubscribe'
+        DB[jid].unsubscribe
       else
         throw :halt, [400, "Bad request, unknown 'mode' parameter"]
       end
-      throw :halt, [200, do_dump(params['jid'])]
+      throw :halt, [200, DB[jid].to_s]
     end    
 
   end
