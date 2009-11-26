@@ -12,15 +12,19 @@
 <form action="/1/" method="post" accept-charset="utf-8">
   <p>
     <label for="jid">JID: <em>(the subscriber JID)</em></label>
-    <input type="text" name="jid" value="" id="jid">
+    <input type="text" name="jid" value="" id="jid" />
+  </p>
+  <p>
+    <label for="callback">Callback: <em>(optional)</em></label>
+    <input type="text" name="callback" value="" id="callback" />
   </p>
   <p>
     <label for="query">Query: <em>(what to search for?)</em></label>
-    <input type="text" name="query" value="" id="query">
+    <input type="text" name="query" value="" id="query" />
   </p>
   <p>
     <label for="apikey">API key: <em>(web.apikey in config.yml)</em></label>
-    <input type="text" name="apikey" value="" id="apikey">
+    <input type="text" name="apikey" value="" id="apikey" />
   </p>
 
   <p>
@@ -31,7 +35,7 @@
     </select>
   </p>
 
-  <p><input type="submit" value="Do it"></p>
+  <p><input type="submit" value="Do it" /></p>
 </form>  
 
 </body>

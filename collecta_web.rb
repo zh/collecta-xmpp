@@ -1,12 +1,21 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
+require 'digest/sha1'
 require 'eventmachine'
 require 'xmpp4r-simple'
 require 'sinatra'
-require 'digest/sha1'
 require 'json'
+require 'httpclient'
 require 'collecta'
+
+begin
+  require 'system_timer'
+  MyTimer = SystemTimer
+rescue
+  require 'timeout'
+  MyTimer = Timeout
+end
 
 class String
   def valid_jid?
@@ -27,10 +36,38 @@ module Collecta
       API_VERSION = "1.2"
       QUERIES = {}
       CONN = {}
+      CALLBACKS = {}
       CFG = YAML.load(File.read("config.yml"))
       XMPP = Jabber::Simple.new(CFG['bot.jid'], CFG['bot.password'])
+    end
 
-      def do_subscribe(jid, query)
+    helpers do
+      # post the search results to a callback url(s) for some JID
+      def do_post(jid, payload)
+        CALLBACKS[jid].each do |cb|
+          begin
+            MyTimer.timeout(CFG['web.giveup'].to_i) do
+              params = { :meta => payload.meta,
+                         :category => payload.category,
+                         :title => payload.title,
+                         :body => payload.body }
+              params[:links] = payload.links if payload.links
+              HTTPClient.post(cb, params)
+            end
+          rescue Exception => e
+            case e
+            when Timeout::Error
+              p "Timeout: #{cb}"
+            else  
+              p "[E] do_post: #{e.to_s}"
+            end
+            next
+          end
+        end   
+      end  
+
+      def do_subscribe(jid, query, callback = "")
+        @service = nil
         if CONN[jid]
           @service = CONN[jid]
         else
@@ -41,6 +78,8 @@ module Collecta
             text = "[#{payload.meta}] #{payload.category}: #{payload.title}"
             p "#{jid} -> #{text}"
             XMPP.deliver(jid, "#{text}\n#{payload.body}")
+            # post the results also to the verified webhook
+            do_post(jid, payload) if CALLBACKS[jid]
           end  
           CONN[jid] = @service
         end
@@ -51,12 +90,23 @@ module Collecta
         else
           QUERIES[jid] = Array(query)
         end
-        @service.subscribe(query)
+
+        # do not keep duplicated callback urls
+        if callback and not callback.empty?
+          if CALLBACKS[jid]
+            CALLBACKS[jid] << callback unless CALLBACKS[jid].include?(callback)
+          else
+            CALLBACKS[jid] = Array(callback)
+          end
+        end  
+
+        @service.subscribe(query) unless QUERIES[jid].include?(query) 
       end
 
       def do_unsubscribe(jid)
         CONN[jid].unsubscribe
         QUERIES.delete(jid) if QUERIES[jid]
+        CALLBACKS.delete(jid) if CALLBACKS[jid]
       end  
     end
 
@@ -72,10 +122,11 @@ module Collecta
       begin
         jid = params[:jid]
         query = params[:q]
+        callback = params[:callback]
         raise "Missing or wrong parameter" unless jid and jid.valid_jid? and query
         sig = Digest::SHA1.hexdigest("--#{CFG['web.apikey']}--#{jid}")
         raise "Non authorized" unless params[:sig] == sig
-        do_subscribe(jid, query)
+        do_subscribe(jid, query, callback)
       rescue Exception => e
         throw :halt, [400, "Bad request: #{e.to_s}"]
       end  
@@ -123,13 +174,18 @@ module Collecta
       raise "Non authorized" unless params[:apikey] == CFG['web.apikey']
       if params['mode'] == 'subscribe'
         throw :halt, [400, "Bad request"] unless params['query']
-        do_subscribe(params['jid'], params['query'])
+        do_subscribe(params['jid'], params['query'], params['callback'])
       elsif params['mode'] == 'unsubscribe'
         do_unsubscribe(params['jid'])
       else
-        throw :halt, [400, "Bad request, unknown 'hub.mode' parameter"]
+        throw :halt, [400, "Bad request, unknown 'mode' parameter"]
       end
-      throw :halt, [200, "OK"]
+      msg = "<h2>JID: #{params['jid']}</h2><pre>\n"
+      msg += "Queries: #{QUERIES[params['jid']].inspect}\n" if QUERIES[params['jid']]
+      msg += "Callbacks: #{CALLBACKS[params['jid']].inspect}\n" if CALLBACKS[params['jid']]
+      msg += "<pre>\n"
+      msg += '<br/><br/><a href="/1/sub">Back...</a>'
+      throw :halt, [200, msg]
     end    
 
   end
