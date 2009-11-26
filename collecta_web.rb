@@ -59,7 +59,7 @@ module Collecta
         msg += "Queries: #{QUERIES[jid].inspect}\n" if QUERIES[jid]
         msg += "Callbacks: #{CALLBACKS[jid].inspect}\n" if CALLBACKS[jid]
         msg += "<pre>\n"
-        msg += '<br/><br/><a href="/1/sub">Back...</a>'
+        msg += '<br/><br/><a href="/1/admin#" onClick="history.go(-1)">Back</a>'
         msg
       end
 
