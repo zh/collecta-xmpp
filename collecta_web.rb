@@ -84,9 +84,15 @@ module Collecta
           CONN[jid] = @service
         end
 
+
+        exists = false
         # do not keep duplicated subscriptions
         if QUERIES[jid]
-          QUERIES[jid] << query unless QUERIES[jid].include?(query)
+          if QUERIES[jid].include?(query)
+            exists = true
+          else  
+            QUERIES[jid] << query
+          end  
         else
           QUERIES[jid] = Array(query)
         end
@@ -100,7 +106,7 @@ module Collecta
           end
         end  
 
-        @service.subscribe(query) unless QUERIES[jid].include?(query) 
+        @service.subscribe(query) unless exists
       end
 
       def do_unsubscribe(jid)
