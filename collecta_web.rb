@@ -42,6 +42,15 @@ module Collecta
     end
 
     helpers do
+      def do_dump(jid)
+        msg = "<h2>JID: #{jid}</h2><pre>\n"
+        msg += "Queries: #{QUERIES[jid].inspect}\n" if QUERIES[jid]
+        msg += "Callbacks: #{CALLBACKS[jid].inspect}\n" if CALLBACKS[jid]
+        msg += "<pre>\n"
+        msg += '<br/><br/><a href="/1/sub">Back...</a>'
+        msg
+      end
+
       # post the search results to a callback url(s) for some JID
       def do_post(jid, payload)
         CALLBACKS[jid].each do |cb|
@@ -178,7 +187,9 @@ module Collecta
     post '/1/?' do
       throw :halt, [400, "Bad request"] unless params['mode'] and params['jid']
       raise "Non authorized" unless params[:apikey] == CFG['web.apikey']
-      if params['mode'] == 'subscribe'
+      if params['mode'] == 'dump'
+        throw :halt, [200, do_dump(params['jid'])]
+      elsif params['mode'] == 'subscribe'
         throw :halt, [400, "Bad request"] unless params['query']
         do_subscribe(params['jid'], params['query'], params['callback'])
       elsif params['mode'] == 'unsubscribe'
@@ -186,12 +197,7 @@ module Collecta
       else
         throw :halt, [400, "Bad request, unknown 'mode' parameter"]
       end
-      msg = "<h2>JID: #{params['jid']}</h2><pre>\n"
-      msg += "Queries: #{QUERIES[params['jid']].inspect}\n" if QUERIES[params['jid']]
-      msg += "Callbacks: #{CALLBACKS[params['jid']].inspect}\n" if CALLBACKS[params['jid']]
-      msg += "<pre>\n"
-      msg += '<br/><br/><a href="/1/sub">Back...</a>'
-      throw :halt, [200, msg]
+      throw :halt, [200, do_dump(params['jid'])]
     end    
 
   end
