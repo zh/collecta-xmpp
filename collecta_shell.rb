@@ -77,27 +77,27 @@ class KbHandler < EM::Connection
     case(cmdline[0])
     when "sub","s" then
       jid = cmdline[1]
-      query = cmdline[2]
+      query =  line.sub(cmdline[0],"").sub(cmdline[1],"").strip
       EM.spawn do
         task = Task.new
-        task.callback { p "'#{jid}' subscribed to '#{query}'"; print ">" }
-        task.errback { p "[E] subscription failed."; print ">" }
+        task.callback { p "'#{jid}' subscribed to '#{query}'"; print "> " }
+        task.errback { p "[E] subscription failed."; print "> " }
         task.subscribe(jid, query) do |msg|
           payload = Collecta::Payload.new(msg)
           text = "[#{payload.meta}] #{payload.category}: #{payload.title}"
           p "#{jid} -> #{text}"
           @@xmpp.deliver(jid, "#{text}\n#{payload.body}")
-          print "> "
+          print "> " 
         end  
       end.notify  
-      print "> "
+      print "> " 
 
     when "unsub","u" then
       jid = cmdline[1]
       EM.spawn do
         task = Task.new
-        task.callback { p "'#{jid}' unsubscribed from all queries"; print ">" }
-        task.errback { p "unsubscription failed"; print ">" }
+        task.callback { p "'#{jid}' unsubscribed from all queries"; print "> " }
+        task.errback { p "unsubscription failed"; print "> " }
         task.unsubscribe(jid)
       end.notify  
       print "> "
