@@ -69,7 +69,6 @@ module Collecta
         msg += "Queries: #{@queries.inspect}\n"
         msg += "Callbacks: #{@callbacks.inspect}\n"
         msg += "<pre>\n"
-        msg += '<br/><br/><a href="/1/admin" onClick="history.go(-1)">Back</a>'
         msg
     end
   end
@@ -104,11 +103,18 @@ module Collecta
         DB[jid].callbacks.each do |cb|
           begin
             MyTimer.timeout(CFG['web.giveup'].to_i) do
-              params = { :meta => payload.meta,
+              params = { :apikey => CFG['web.apikey'],
+                         :jid => jid,
+                         :meta => payload.meta,
                          :category => payload.category,
                          :title => payload.title,
                          :body => payload.body }
-              params[:links] = payload.links if payload.links
+              if payload.links
+                link = Array(payload.links)[0]
+                link = link['href'] if link.kind_of?(Hash)
+                link = link[1] if link.kind_of?(Array) and link[0] == 'href'
+                params[:links] = link
+              end  
               HTTPClient.post(cb, params)
             end
           rescue Exception => e
@@ -129,7 +135,6 @@ module Collecta
           DB[jid].service.add_message_callback do |msg|
             payload = Collecta::Payload.new(msg)
             text = "[#{payload.meta}] #{payload.category}: #{payload.title}"
-            p "#{jid} -> #{text}"
             XMPP.deliver(jid, "#{text}\n#{payload.body}") unless DB[jid].noxmpp == true
             # post the results also to the verified webhook
             do_post(jid, payload) unless DB[jid].callbacks.empty?
@@ -209,7 +214,16 @@ module Collecta
       throw :halt, [400, "Bad request"] unless mode and jid
       raise "Non authorized" unless params[:apikey] == CFG['web.apikey']
       if mode == 'dump'
-        throw :halt, [200, DB[jid].to_s]
+        text = ""
+        if jid == "__all__"
+          DB.each do |j|
+            text += "#{j.to_s}<br/>\n"
+          end  
+        else
+          text = DB[jid].to_s
+        end  
+        text += '<br/><br/><a href="/1/admin/#" onClick="history.go(-1)">Back</a>'
+        throw :halt, [200, text]
       elsif mode == 'subscribe'
         query = params[:query]
         throw :halt, [400, "Bad request"] unless query

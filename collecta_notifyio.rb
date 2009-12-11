@@ -60,10 +60,12 @@ end
     text = "#{payload.body.strip_tags.condense.auto_link}"
     query = { 'title' => title,
               'text'  => text,
-              'icon'  => 'http://developer.collecta.com/favicon.ico' }
+              'icon'  => '/usr/share/pixmaps/collecta.png' }
     if payload.links
       link = Array(payload.links)[0]
-      query['link'] = link['href'] if link.kind_of?(Hash)
+      link = link['href'] if link.kind_of?(Hash)
+      link = link[1] if link.kind_of?(Array) and link[0] == 'href'
+      query['link'] = link
     end  
     MyTimer.timeout(5) do
       res = HTTPClient.post(@notifyio_url, query)
